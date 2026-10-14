@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#102c24">
+    <meta name="description" content="Manage the football player list.">
+    <title>Manage players · Football plans</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="config.js" defer></script>
+    <script src="admin.js" defer></script>
+  </head>
+  <body>
+    <main class="page admin-page">
+      <header class="hero">
+        <p class="eyebrow">THE NEXT KICKABOUT</p>
+        <h1>Player <span>list</span></h1>
+        <p class="session-name">Manage the names available on the RSVP page.</p>
+        <a class="admin-link" href="index.html">Back to RSVP</a>
+      </header>
+
+      <section id="login-panel" class="rsvp-card" aria-labelledby="login-heading">
+        <p class="eyebrow">ADMIN ACCESS</p>
+        <h2 id="login-heading">Sign in</h2>
+        <p class="intro">Enter the admin username and your Supabase account password.</p>
+        <form id="login-form">
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" autocomplete="username" required>
+          <label class="admin-password-label" for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+          <button id="login-button" type="submit">Sign in</button>
+          <p id="login-message" class="message" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section id="manager-panel" class="rsvp-card" aria-labelledby="manager-heading" hidden>
+        <div class="attendance-heading admin-manager-heading">
+          <div>
+            <p class="eyebrow">ROSTER</p>
+            <h2 id="manager-heading">Manage players</h2>
+          </div>
+          <button id="logout-button" class="refresh-button" type="button">Sign out</button>
+        </div>
+        <form id="add-player-form">
+          <label for="new-player">Add a player</label>
+          <div class="add-player-row">
+            <input id="new-player" name="player" type="text" maxlength="60" placeholder="Player name" required>
+            <button id="add-player-button" type="submit">Add player</button>
+          </div>
+          <label class="checkbox-label" for="new-player-guest">
+            <input id="new-player-guest" name="is-guest" type="checkbox">
+            This player is a guest
+          </label>
+          <p id="manager-message" class="message" role="status" aria-live="polite"></p>
+        </form>
+        <ul id="player-list" class="attendance-list admin-player-list"></ul>
+      </section>
+
+      <footer>Changes appear on the RSVP page automatically.</footer>
+    </main>
+  </body>
+</html>

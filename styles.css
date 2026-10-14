@@ -87,6 +87,20 @@ h1 span {
   font-size: 0.87rem;
 }
 
+.admin-link {
+  display: inline-block;
+  margin-top: 12px;
+  color: #55755d;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.admin-link:hover {
+  color: #244936;
+}
+
 .rsvp-card {
   padding: 28px;
   border: 1px solid rgba(255, 255, 255, 0.8);
@@ -136,6 +150,44 @@ legend {
 
 #name::placeholder {
   color: #a4afa7;
+}
+
+.name-field {
+  margin-top: 17px;
+}
+
+.name-field label,
+.admin-page form > label,
+.admin-password-label {
+  display: block;
+  margin-bottom: 9px;
+  color: #334c40;
+  font-size: 0.81rem;
+  font-weight: 700;
+}
+
+.name-field select,
+.name-field input,
+.admin-page form input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  outline: none;
+  background: #fbfcfa;
+  color: #18352c;
+}
+
+.name-field select:focus,
+.name-field input:focus,
+.admin-page form input:focus {
+  border-color: #84a581;
+  box-shadow: 0 0 0 3px rgba(132, 165, 129, 0.17);
+}
+
+.name-field select:disabled {
+  color: #8c9890;
 }
 
 fieldset {
@@ -252,6 +304,132 @@ fieldset {
 
 .refresh-button:hover {
   background: #fff;
+}
+
+.admin-page .rsvp-card + .rsvp-card {
+  margin-top: 22px;
+}
+
+.admin-page #login-form > label:not(:first-child) {
+  margin-top: 16px;
+}
+
+.admin-page #login-button,
+.add-player-row > button {
+  min-height: 47px;
+  padding: 0 17px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--green);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.admin-page #login-button {
+  width: 100%;
+  margin-top: 20px;
+}
+
+.admin-page #login-button:disabled,
+.add-player-row > button:disabled,
+.remove-player-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.admin-manager-heading {
+  margin-bottom: 23px;
+}
+
+.add-player-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 9px;
+}
+
+.add-player-row > button {
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
+.checkbox-label {
+  display: flex !important;
+  align-items: center;
+  gap: 9px;
+  margin: 12px 0 0 !important;
+  color: #506357 !important;
+  cursor: pointer;
+  font-size: 0.82rem !important;
+  font-weight: 500 !important;
+}
+
+.checkbox-label input {
+  width: 17px !important;
+  height: 17px !important;
+  margin: 0;
+  accent-color: #315c3c;
+}
+
+.admin-player-list {
+  margin-top: 12px;
+}
+
+.player-actions,
+.edit-player-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 7px;
+}
+
+.edit-player-button {
+  padding: 7px 10px;
+  border: 1px solid #dce6d9;
+  border-radius: 8px;
+  background: #f4f8f1;
+  color: #426347;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.edit-player-button:hover {
+  background: #eaf2e6;
+}
+
+.edit-player-form {
+  display: grid;
+  width: 100%;
+  gap: 11px;
+}
+
+.edit-player-form > label:not(.checkbox-label) {
+  display: grid;
+  gap: 7px;
+  color: #334c40;
+  font-size: 0.81rem;
+  font-weight: 700;
+}
+
+.edit-player-actions {
+  justify-content: flex-end;
+}
+
+.remove-player-button {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  border: 1px solid #eadbd7;
+  border-radius: 8px;
+  background: #fff9f7;
+  color: #975b4f;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.remove-player-button:hover {
+  background: #f8eeeb;
 }
 
 .totals {

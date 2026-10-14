@@ -1,6 +1,8 @@
 window.FOOTBALL_CONFIG = {
-  supabaseUrl: "https://YOUR-PROJECT.supabase.co",
-  supabaseAnonKey: "YOUR_SUPABASE_ANON_KEY",
+  supabaseUrl: "https://pyshoxsrqftjyksaflrt.supabase.co",
+  supabaseAnonKey: "sb_publishable_jOQyiZiVDQ5kriBTareN6A_S_NnyFbd",
   sessionName: "Football",
-  sessionDate: ""
+  sessionDate: "",
+  adminUsername: "ASMPT",
+  adminEmail: "louisjamesgarden@gmail.com"
 };

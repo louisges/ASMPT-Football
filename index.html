@@ -17,6 +17,7 @@
         <h1>Are you <span>playing?</span></h1>
         <p id="session-name" class="session-name">Football</p>
         <p id="session-date" class="session-date"></p>
+        <a class="admin-link" href="admin.html">Admin</a>
       </header>
 
       <section class="rsvp-card" aria-labelledby="rsvp-heading">
@@ -27,9 +28,31 @@
         </div>
 
         <form id="rsvp-form">
-          <label for="name">Your name</label>
-          <input id="name" name="name" type="text" maxlength="60" autocomplete="name"
-            placeholder="e.g. Alex" required>
+          <fieldset class="name-options">
+            <legend>Choose how to add your name</legend>
+            <div class="choices name-type-choices">
+              <label class="choice">
+                <input type="radio" name="name-type" value="player" checked>
+                <span>Choose a player</span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="name-type" value="guest">
+                <span>I'm a guest</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <div id="player-name-field" class="name-field">
+            <label for="player-name">Player name</label>
+            <select id="player-name" name="player-name" required>
+              <option value="">Loading players…</option>
+            </select>
+          </div>
+          <div id="guest-name-field" class="name-field" hidden>
+            <label for="guest-name">Guest name</label>
+            <input id="guest-name" name="guest-name" type="text" maxlength="60" autocomplete="name"
+              placeholder="Enter your name" disabled>
+          </div>
 
           <fieldset>
             <legend>Are you coming?</legend>
@@ -82,7 +105,7 @@
 
         <p id="list-message" class="list-message" role="status" aria-live="polite">Loading attendance…</p>
         <ul id="attendance-list" class="attendance-list"></ul>
-        <p class="privacy-note">Names and answers are public. No sign-in is required, so anyone can submit or change an answer under any name.</p>
+        <p class="privacy-note">Names and answers are public. Guests can RSVP under any name; player names are chosen from the list.</p>
       </section>
 
       <footer>See you on the pitch.</footer>
