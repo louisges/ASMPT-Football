@@ -129,6 +129,24 @@ begin
   end if;
 
   if current_teams_locked then
+    with attending_count as (
+      select count(*) as total from public.rsvps where status = 'yes'
+    ),
+    ranked_waitlist as (
+      select
+        r.id,
+        row_number() over (order by r.created_at asc, r.id asc) as waitlist_position
+      from public.rsvps r
+      where r.status = 'unable'
+    )
+    update public.rsvps r
+    set status = 'yes'
+    from ranked_waitlist, attending_count
+    where r.id = ranked_waitlist.id
+      and (
+        player_limit is null
+        or attending_count.total + ranked_waitlist.waitlist_position <= player_limit
+      );
     return;
   end if;
 
@@ -503,9 +521,7 @@ begin
   set max_players = player_limit
   where id = true;
 
-  if not current_teams_locked then
-    perform public.recalculate_rsvp_statuses(player_limit);
-  end if;
+  perform public.recalculate_rsvp_statuses(player_limit);
 end;
 $$;
 

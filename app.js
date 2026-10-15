@@ -19,6 +19,8 @@
   const deleteDialog = document.getElementById("delete-rsvp-dialog");
   const deleteWarning = document.getElementById("delete-rsvp-warning");
   const confirmDeleteButton = document.getElementById("confirm-delete-rsvp");
+  const waitlistNoticeDialog = document.getElementById("waitlist-notice-dialog");
+  const waitlistNoticeMessage = document.getElementById("waitlist-notice-message");
   let pendingDeleteName = null;
   let playersAvailable = false;
 
@@ -218,10 +220,15 @@
       }
 
       const result = await response.json();
-      setMessage(formMessage, result === "unable"
-        ? "The player limit is full. This name has been added to Unable to Attend / Waitlist."
+      const addedToWaitlist = result === "unable";
+      setMessage(formMessage, addedToWaitlist
+        ? "This name has been added to Unable to Attend / Waitlist."
         : "Name added to Attending.", false);
       await loadAttendance();
+      if (addedToWaitlist) {
+        waitlistNoticeMessage.textContent = name + " has been added to Unable to Attend / Waitlist because all places are full.";
+        waitlistNoticeDialog.showModal();
+      }
     } catch (error) {
       setMessage(formMessage, error.message || "Could not save your answer. Please try again.", true);
     } finally {
@@ -265,6 +272,10 @@
     } finally {
       confirmDeleteButton.disabled = false;
     }
+  });
+
+  document.getElementById("close-waitlist-notice").addEventListener("click", function () {
+    waitlistNoticeDialog.close();
   });
 
   form.querySelectorAll('input[name="name-type"]').forEach(function (input) {
