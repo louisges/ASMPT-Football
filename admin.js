@@ -29,15 +29,35 @@
   const unlistedRsvpsList = document.getElementById("unlisted-rsvps-list");
   const unlistedRsvpsMessage = document.getElementById("unlisted-rsvps-message");
   const refreshUnlistedRsvpsButton = document.getElementById("refresh-unlisted-rsvps");
+  const rosterTab = document.getElementById("roster-tab");
+  const historyTab = document.getElementById("history-tab");
+  const overviewTab = document.getElementById("overview-tab");
+  const rosterTabPanel = document.getElementById("roster-tab-panel");
+  const historyTabPanel = document.getElementById("history-tab-panel");
+  const overviewTabPanel = document.getElementById("overview-tab-panel");
+  const capturePlayersForm = document.getElementById("capture-players-form");
+  const captureDateInput = document.getElementById("capture-date");
+  const capturePlayersButton = document.getElementById("capture-players-button");
+  const captureMessage = document.getElementById("capture-message");
+  const attendanceHistoryList = document.getElementById("attendance-history-list");
+  const attendanceHistoryMessage = document.getElementById("attendance-history-message");
+  const refreshAttendanceHistoryButton = document.getElementById("refresh-attendance-history");
+  const overviewYearInput = document.getElementById("overview-year");
+  const attendanceOverviewBody = document.getElementById("attendance-overview-body");
+  const attendanceOverviewMessage = document.getElementById("attendance-overview-message");
   const limitWarningDialog = document.getElementById("limit-warning-dialog");
   const limitWarningMessage = document.getElementById("limit-warning-message");
   const confirmLimitButton = document.getElementById("confirm-limit-change");
   const resetDialog = document.getElementById("reset-rsvps-dialog");
   const confirmResetButton = document.getElementById("confirm-reset-rsvps");
+  const deleteCaptureDialog = document.getElementById("delete-capture-dialog");
+  const deleteCaptureMessage = document.getElementById("delete-capture-message");
+  const confirmDeleteCaptureButton = document.getElementById("confirm-delete-capture");
   let session = null;
   let currentPlayerLimit = null;
   let currentAttendanceStatus = "open";
   let pendingPlayerLimit = null;
+  let pendingCaptureId = null;
 
   function isConfigured() {
     return config.supabaseUrl &&
@@ -162,6 +182,285 @@
     sessionStorage.removeItem(storageKey);
     managerPanel.hidden = true;
     loginPanel.hidden = false;
+  }
+
+  function localDateValue(date) {
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0")
+    ].join("-");
+  }
+
+  function displaySessionDate(value) {
+    return new Date(value + "T00:00:00").toLocaleDateString(undefined, {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    });
+  }
+
+  function switchAdminTab(tab) {
+    const tabs = [
+      [rosterTab, rosterTabPanel],
+      [historyTab, historyTabPanel],
+      [overviewTab, overviewTabPanel]
+    ];
+    tabs.forEach(function (entry) {
+      const selected = entry[0] === tab;
+      entry[0].setAttribute("aria-selected", String(selected));
+      entry[0].tabIndex = selected ? 0 : -1;
+      entry[1].hidden = !selected;
+    });
+    if (tab === historyTab) {
+      loadAttendanceHistory();
+    } else if (tab === overviewTab) {
+      loadAttendanceOverview();
+    }
+  }
+
+  function appendHistoryGroup(capture, status, heading) {
+    const group = document.createElement("section");
+    group.className = "attendance-history-group";
+    const title = document.createElement("h4");
+    title.textContent = heading;
+    group.append(title);
+
+    const entries = capture.players.filter(function (player) {
+      return player.status === status;
+    });
+    if (!entries.length) {
+      const empty = document.createElement("p");
+      empty.className = "history-empty";
+      empty.textContent = "No names recorded.";
+      group.append(empty);
+      return group;
+    }
+
+    const list = document.createElement("ul");
+    list.className = "attendance-list";
+    entries.forEach(function (player) {
+      const item = document.createElement("li");
+      item.className = "attendee";
+      const details = document.createElement("div");
+      details.className = "attendee-details";
+      const name = document.createElement("span");
+      name.className = "attendee-name";
+      name.textContent = player.name + (player.is_employee ? "" : " (Guest)");
+      details.append(name);
+
+      if (status === "yes") {
+        const noShow = document.createElement("span");
+        noShow.className = player.no_show ? "history-no-show" : "attendee-timestamp";
+        noShow.textContent = player.no_show ? "Did not show up" : "No-show not recorded";
+        details.append(noShow);
+
+        const noShowButton = document.createElement("button");
+        noShowButton.className = player.no_show ? "edit-player-button" : "remove-player-button";
+        noShowButton.type = "button";
+        noShowButton.textContent = player.no_show ? "Undo no-show" : "Mark no-show";
+        noShowButton.setAttribute("aria-label", (player.no_show ? "Undo no-show for " : "Mark ") + player.name);
+        noShowButton.addEventListener("click", async function () {
+          noShowButton.disabled = true;
+          setMessage(attendanceHistoryMessage, "Updating " + player.name + "…", false);
+          try {
+            await request("/rest/v1/rpc/admin_set_capture_no_show", {
+              method: "POST",
+              body: JSON.stringify({
+                capture_player_id: player.id,
+                did_not_show: !player.no_show
+              })
+            });
+            const historyLoaded = await loadAttendanceHistory();
+            if (historyLoaded) {
+              setMessage(attendanceHistoryMessage, player.no_show
+                ? player.name + " is no longer marked as a no-show."
+                : player.name + " marked as a no-show.", false);
+            }
+          } catch (error) {
+            noShowButton.disabled = false;
+            setMessage(attendanceHistoryMessage, error.message || "Could not update the no-show record.", true);
+          }
+        });
+        item.append(details, noShowButton);
+      } else {
+        item.append(details);
+      }
+      list.append(item);
+    });
+    group.append(list);
+    return group;
+  }
+
+  async function loadAttendanceHistory() {
+    refreshAttendanceHistoryButton.disabled = true;
+    setMessage(attendanceHistoryMessage, "Loading attendance history…", false);
+    attendanceHistoryList.replaceChildren();
+    try {
+      const rows = await request("/rest/v1/rpc/admin_list_attendance_captures", {
+        method: "POST",
+        body: "{}"
+      });
+      if (!Array.isArray(rows)) {
+        throw new Error("Supabase returned an invalid attendance history.");
+      }
+
+      const captures = new Map();
+      rows.forEach(function (row) {
+        const id = String(row.capture_id);
+        if (!captures.has(id)) {
+          captures.set(id, {
+            id: row.capture_id,
+            date: row.session_date,
+            capturedAt: row.captured_at,
+            players: []
+          });
+        }
+        if (row.capture_player_id !== null) {
+          captures.get(id).players.push({
+            id: row.capture_player_id,
+            name: row.player_name,
+            status: row.status,
+            is_employee: row.is_employee,
+            no_show: row.no_show
+          });
+        }
+      });
+
+      if (captures.size === 0) {
+        setMessage(attendanceHistoryMessage, "No attendance captures yet. Use Capture Players to save the current list.", false);
+        return true;
+      }
+
+      captures.forEach(function (capture) {
+        const card = document.createElement("section");
+        card.className = "attendance-capture";
+        const heading = document.createElement("div");
+        heading.className = "attendance-capture-heading attendance-capture-heading-row";
+        const title = document.createElement("h3");
+        title.textContent = displaySessionDate(capture.date);
+        const timestamp = document.createElement("p");
+        timestamp.textContent = "Captured " + new Date(capture.capturedAt).toLocaleString();
+        const captureDetails = document.createElement("div");
+        captureDetails.append(title, timestamp);
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "remove-player-button";
+        deleteButton.type = "button";
+        deleteButton.textContent = "Delete capture";
+        deleteButton.setAttribute("aria-label", "Delete attendance capture for " + displaySessionDate(capture.date));
+        deleteButton.addEventListener("click", function () {
+          pendingCaptureId = capture.id;
+          deleteCaptureMessage.textContent = "This permanently deletes the " +
+            displaySessionDate(capture.date) + " capture and its " +
+            capture.players.length + " saved player record" +
+            (capture.players.length === 1 ? "" : "s") + ". This cannot be undone.";
+          deleteCaptureDialog.showModal();
+        });
+        heading.append(captureDetails, deleteButton);
+        card.append(
+          heading,
+          appendHistoryGroup(capture, "yes", "Attending"),
+          appendHistoryGroup(capture, "unable", "Unable to Attend / Waitlist")
+        );
+        attendanceHistoryList.append(card);
+      });
+      setMessage(attendanceHistoryMessage, "", false);
+      return true;
+    } catch (error) {
+      setMessage(attendanceHistoryMessage, error.message || "Could not load attendance history.", true);
+      return false;
+    } finally {
+      refreshAttendanceHistoryButton.disabled = false;
+    }
+  }
+
+  async function capturePlayers(date) {
+    capturePlayersButton.disabled = true;
+    setMessage(captureMessage, "Capturing the current attendance list…", false);
+    try {
+      const count = await request("/rest/v1/rpc/admin_capture_players", {
+        method: "POST",
+        body: JSON.stringify({ capture_date: date })
+      });
+      if (!Number.isInteger(count) || count < 0) {
+        throw new Error("Capture request completed but Supabase did not return the number of captured players. Run the latest schema.sql, then try again.");
+      }
+      setMessage(captureMessage, "Captured " + count + " RSVP" + (count === 1 ? "" : "s") + " for " + displaySessionDate(date) + ".", false);
+      switchAdminTab(historyTab);
+    } catch (error) {
+      setMessage(captureMessage, error.message || "Could not capture the players.", true);
+    } finally {
+      capturePlayersButton.disabled = false;
+    }
+  }
+
+  async function loadAttendanceOverview() {
+    setMessage(attendanceOverviewMessage, "Loading attendance overview…", false);
+    attendanceOverviewBody.replaceChildren();
+    try {
+      const years = await request("/rest/v1/rpc/admin_list_attendance_years", {
+        method: "POST",
+        body: "{}"
+      });
+      if (!Array.isArray(years)) {
+        throw new Error("Supabase returned an invalid attendance year list.");
+      }
+      const selectedYear = overviewYearInput.value;
+      overviewYearInput.replaceChildren(new Option("All time", ""));
+      years.forEach(function (entry) {
+        const year = Number(entry.session_year);
+        if (!Number.isInteger(year)) {
+          throw new Error("Supabase returned an invalid attendance year.");
+        }
+        overviewYearInput.append(new Option(String(year), String(year)));
+      });
+      if (selectedYear && years.some(function (entry) {
+        return String(entry.session_year) === selectedYear;
+      })) {
+        overviewYearInput.value = selectedYear;
+      }
+
+      const yearFilter = overviewYearInput.value === "" ? null : Number(overviewYearInput.value);
+      const rows = await request("/rest/v1/rpc/admin_attendance_overview", {
+        method: "POST",
+        body: JSON.stringify({ year_filter: yearFilter })
+      });
+      if (!Array.isArray(rows)) {
+        throw new Error("Supabase returned an invalid attendance overview.");
+      }
+      if (rows.length === 0) {
+        setMessage(attendanceOverviewMessage, yearFilter === null
+          ? "No attendance captures have been recorded yet."
+          : "No attendance records found for " + yearFilter + ".", false);
+        return;
+      }
+      rows.forEach(function (row) {
+        const tableRow = document.createElement("tr");
+        const name = document.createElement("th");
+        name.scope = "row";
+        name.textContent = row.player_name;
+        tableRow.append(
+          name,
+          createOverviewCell(row.attended_count),
+          createOverviewCell(row.unable_count),
+          createOverviewCell(row.no_show_count)
+        );
+        attendanceOverviewBody.append(tableRow);
+      });
+      setMessage(attendanceOverviewMessage, rows.length + " player" +
+        (rows.length === 1 ? "" : "s") + " in " +
+        (yearFilter === null ? "all attendance history." : yearFilter + "."),
+      false);
+    } catch (error) {
+      setMessage(attendanceOverviewMessage, error.message || "Could not load the attendance overview.", true);
+    }
+  }
+
+  function createOverviewCell(value) {
+    const cell = document.createElement("td");
+    cell.textContent = String(value);
+    return cell;
   }
 
   async function loadPlayers() {
@@ -518,6 +817,66 @@
     copyAttendanceList("unable", copyWaitlistButton, "unable to attend list");
   });
   refreshUnlistedRsvpsButton.addEventListener("click", loadUnlistedRsvps);
+  [rosterTab, historyTab, overviewTab].forEach(function (tab) {
+    tab.addEventListener("keydown", function (event) {
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        const tabs = [rosterTab, historyTab, overviewTab];
+        const currentIndex = tabs.indexOf(tab);
+        const offset = event.key === "ArrowRight" ? 1 : -1;
+        const nextTab = tabs[(currentIndex + offset + tabs.length) % tabs.length];
+        nextTab.focus();
+        switchAdminTab(nextTab);
+      }
+    });
+  });
+  captureDateInput.value = localDateValue(new Date());
+  capturePlayersForm.addEventListener("submit", function (event) {
+    event.preventDefault();
+    if (!captureDateInput.value) {
+      captureDateInput.focus();
+      setMessage(captureMessage, "Choose a date to capture.", true);
+      return;
+    }
+    capturePlayers(captureDateInput.value);
+  });
+  refreshAttendanceHistoryButton.addEventListener("click", loadAttendanceHistory);
+  overviewYearInput.addEventListener("change", loadAttendanceOverview);
+  overviewTab.addEventListener("click", function () {
+    switchAdminTab(overviewTab);
+  });
+  rosterTab.addEventListener("click", function () {
+    switchAdminTab(rosterTab);
+  });
+  historyTab.addEventListener("click", function () {
+    switchAdminTab(historyTab);
+  });
+  document.getElementById("cancel-delete-capture").addEventListener("click", function () {
+    pendingCaptureId = null;
+    deleteCaptureDialog.close();
+  });
+  confirmDeleteCaptureButton.addEventListener("click", async function () {
+    if (pendingCaptureId === null) {
+      return;
+    }
+    confirmDeleteCaptureButton.disabled = true;
+    setMessage(attendanceHistoryMessage, "Deleting attendance capture…", false);
+    try {
+      await request("/rest/v1/rpc/admin_delete_attendance_capture", {
+        method: "POST",
+        body: JSON.stringify({ target_capture_id: pendingCaptureId })
+      });
+      deleteCaptureDialog.close();
+      pendingCaptureId = null;
+      if (await loadAttendanceHistory()) {
+        setMessage(attendanceHistoryMessage, "Attendance capture deleted.", false);
+      }
+    } catch (error) {
+      setMessage(attendanceHistoryMessage, error.message || "Could not delete the attendance capture.", true);
+    } finally {
+      confirmDeleteCaptureButton.disabled = false;
+    }
+  });
 
   document.getElementById("cancel-limit-change").addEventListener("click", function () {
     pendingPlayerLimit = null;
