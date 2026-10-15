@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#102c24">
     <meta name="description" content="Manage the football player list.">
-    <title>Manage players · Football plans</title>
+    <title>Manage players · ASMPT Football</title>
     <link rel="stylesheet" href="styles.css">
     <script src="config.js" defer></script>
     <script src="admin.js" defer></script>
@@ -13,7 +13,6 @@
   <body>
     <main class="page admin-page">
       <header class="hero">
-        <p class="eyebrow">THE NEXT KICKABOUT</p>
         <h1>Player <span>list</span></h1>
         <p class="session-name">Manage the names available on the RSVP page.</p>
         <a class="admin-link" href="index.html">Back to RSVP</a>
@@ -41,6 +40,38 @@
           </div>
           <button id="logout-button" class="refresh-button" type="button">Sign out</button>
         </div>
+        <div class="reset-rsvps-panel">
+          <div>
+            <h3>Start a fresh attendance list</h3>
+            <p>This permanently clears every RSVP but keeps all players.</p>
+          </div>
+          <button id="open-reset-dialog" class="danger-button" type="button">Reset all RSVPs</button>
+        </div>
+        <form id="player-limit-form" class="player-limit-panel">
+          <div>
+            <label for="player-limit">Maximum player limit</label>
+            <p>ASMPT employees get priority; guests take remaining places in RSVP order. Lowering the limit may move players to the waitlist under the first-come-first-served selection process. Leave blank for no limit.</p>
+          </div>
+          <div class="player-limit-controls">
+            <input id="player-limit" name="player-limit" type="number" min="1" max="2147483647" step="1" placeholder="No limit">
+            <button id="save-player-limit" type="submit">Save limit</button>
+          </div>
+          <p id="limit-message" class="message" role="status" aria-live="polite"></p>
+        </form>
+        <form id="teams-lock-form" class="player-limit-panel">
+          <div>
+            <label for="teams-locked">Lock in the teams</label>
+            <p>When locked, current places stay fixed. New names join the waitlist when all places are full, regardless of whether they are ASMPT employees or guests. Unlocking restores employee priority.</p>
+          </div>
+          <div class="player-limit-controls">
+            <label class="checkbox-label" for="teams-locked">
+              <input id="teams-locked" name="teams-locked" type="checkbox">
+              Teams are locked
+            </label>
+            <button id="save-teams-lock" type="submit">Save lock setting</button>
+          </div>
+          <p id="teams-lock-message" class="message" role="status" aria-live="polite"></p>
+        </form>
         <form id="add-player-form">
           <label for="new-player">Add a player</label>
           <div class="add-player-row">
@@ -58,5 +89,29 @@
 
       <footer>Changes appear on the RSVP page automatically.</footer>
     </main>
+
+    <dialog id="reset-rsvps-dialog" class="confirm-dialog" aria-labelledby="reset-rsvps-title">
+      <div class="confirm-dialog-content">
+        <p class="eyebrow">PLEASE CONFIRM</p>
+        <h2 id="reset-rsvps-title">Reset all RSVPs?</h2>
+        <p class="intro">This permanently deletes every attendance answer. The player list and maximum player limit will not be changed.</p>
+        <div class="confirm-actions">
+          <button id="cancel-reset-rsvps" class="refresh-button" type="button">Cancel</button>
+          <button id="confirm-reset-rsvps" class="danger-button" type="button">Delete all RSVPs</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="limit-warning-dialog" class="confirm-dialog" aria-labelledby="limit-warning-title">
+      <div class="confirm-dialog-content">
+        <p class="eyebrow">PLEASE CONFIRM</p>
+        <h2 id="limit-warning-title">Change the player limit?</h2>
+        <p id="limit-warning-message" class="intro"></p>
+        <div class="confirm-actions">
+          <button id="cancel-limit-change" class="refresh-button" type="button">Cancel</button>
+          <button id="confirm-limit-change" class="danger-button" type="button">Change limit</button>
+        </div>
+      </div>
+    </dialog>
   </body>
 </html>

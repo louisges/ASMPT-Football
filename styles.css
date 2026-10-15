@@ -70,6 +70,7 @@ h1 {
 }
 
 h1 span {
+  margin-left: 0.18em;
   color: #91a977;
 }
 
@@ -201,6 +202,10 @@ fieldset {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 9px;
+}
+
+.name-type-choices {
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .choice {
@@ -341,6 +346,86 @@ fieldset {
 
 .admin-manager-heading {
   margin-bottom: 23px;
+}
+
+.player-limit-panel {
+  margin-bottom: 23px;
+  padding: 15px;
+  border: 1px solid #e1e9dc;
+  border-radius: 11px;
+  background: #f7faf5;
+}
+
+.player-limit-panel > div:first-child > label {
+  display: block;
+  margin-bottom: 5px;
+  color: #334c40;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.player-limit-panel > div:first-child > p {
+  margin: 0 0 12px;
+  color: #738078;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.player-limit-controls {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 9px;
+}
+
+.player-limit-controls input {
+  min-width: 0;
+}
+
+.player-limit-controls button {
+  min-height: 47px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--green);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.player-limit-controls button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.player-limit-panel .message {
+  margin-bottom: 0;
+}
+
+.reset-rsvps-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 23px;
+  padding: 14px;
+  border: 1px solid #f0ded9;
+  border-radius: 11px;
+  background: #fff9f7;
+}
+
+.reset-rsvps-panel h3 {
+  margin: 0 0 4px;
+  color: #684c46;
+  font-size: 0.87rem;
+}
+
+.reset-rsvps-panel p {
+  margin: 0;
+  color: #8d716a;
+  font-size: 0.73rem;
+  line-height: 1.45;
 }
 
 .add-player-row {
@@ -488,6 +573,17 @@ fieldset {
   font-weight: 600;
 }
 
+.attendee-details {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.attendee-timestamp {
+  color: #849087;
+  font-size: 0.7rem;
+}
+
 .attendee-status {
   flex: 0 0 auto;
   padding: 5px 9px;
@@ -506,6 +602,135 @@ fieldset {
 .attendee-status.no {
   background: #f3e9e6;
   color: #906057;
+}
+
+.capacity-summary {
+  margin: 17px 0 20px;
+  padding: 12px 15px;
+  border: 1px solid #e1e9dc;
+  border-radius: 10px;
+  background: #eef4eb;
+  color: #34543b;
+  font-size: 0.83rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.attendance-group {
+  margin-top: 22px;
+}
+
+.attendance-subheading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.attendance-subheading h3 {
+  margin: 0;
+  color: #294536;
+  font-family: Manrope, sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+.group-count {
+  display: inline-flex;
+  min-width: 27px;
+  height: 27px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 7px;
+  border-radius: 99px;
+  background: #eaf1e7;
+  color: #426b43;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.unable-group .group-count {
+  background: #f3e9e6;
+  color: #906057;
+}
+
+.attendee-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.delete-rsvp-button {
+  padding: 5px 8px;
+  border: 1px solid #eadbd7;
+  border-radius: 7px;
+  background: #fff9f7;
+  color: #975b4f;
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.delete-rsvp-button:hover {
+  background: #f8eeeb;
+}
+
+.delete-rsvp-button:disabled,
+.danger-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.confirm-dialog {
+  width: min(100% - 32px, 440px);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #e4e9e1;
+  border-radius: 16px;
+  background: #fff;
+  color: #18352c;
+  box-shadow: 0 24px 80px rgba(20, 38, 28, 0.25);
+}
+
+.confirm-dialog::backdrop {
+  background: rgba(17, 35, 26, 0.52);
+  backdrop-filter: blur(2px);
+}
+
+.confirm-dialog-content {
+  padding: 25px;
+}
+
+.confirm-dialog-content h2 {
+  margin-bottom: 9px;
+}
+
+.confirm-dialog-content .intro {
+  margin-bottom: 22px;
+  line-height: 1.55;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.danger-button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #9e4940;
+  border-radius: 8px;
+  background: #a74d43;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.danger-button:hover {
+  background: #8f3e36;
 }
 
 .list-message {

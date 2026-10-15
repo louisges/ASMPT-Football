@@ -14,7 +14,23 @@
   const newPlayerInput = document.getElementById("new-player");
   const newPlayerGuest = document.getElementById("new-player-guest");
   const playerList = document.getElementById("player-list");
+  const playerLimitForm = document.getElementById("player-limit-form");
+  const playerLimitInput = document.getElementById("player-limit");
+  const savePlayerLimitButton = document.getElementById("save-player-limit");
+  const limitMessage = document.getElementById("limit-message");
+  const teamsLockForm = document.getElementById("teams-lock-form");
+  const teamsLockedInput = document.getElementById("teams-locked");
+  const saveTeamsLockButton = document.getElementById("save-teams-lock");
+  const teamsLockMessage = document.getElementById("teams-lock-message");
+  const limitWarningDialog = document.getElementById("limit-warning-dialog");
+  const limitWarningMessage = document.getElementById("limit-warning-message");
+  const confirmLimitButton = document.getElementById("confirm-limit-change");
+  const resetDialog = document.getElementById("reset-rsvps-dialog");
+  const confirmResetButton = document.getElementById("confirm-reset-rsvps");
   let session = null;
+  let currentPlayerLimit = null;
+  let currentTeamsLocked = false;
+  let pendingPlayerLimit = null;
 
   function isConfigured() {
     return config.supabaseUrl &&
@@ -140,6 +156,64 @@
     });
   }
 
+  async function loadPlayerLimit() {
+    const settings = await request("/rest/v1/attendance_settings?select=max_players,teams_locked&id=eq.true");
+    if (!settings.length) {
+      throw new Error("Attendance settings are missing. Run the latest schema.sql in Supabase.");
+    }
+    currentPlayerLimit = settings[0].max_players;
+    currentTeamsLocked = settings[0].teams_locked;
+    playerLimitInput.value = currentPlayerLimit === null ? "" : String(currentPlayerLimit);
+    teamsLockedInput.checked = currentTeamsLocked;
+  }
+
+  async function savePlayerLimit(limit) {
+    savePlayerLimitButton.disabled = true;
+    confirmLimitButton.disabled = true;
+    setMessage(limitMessage, "Saving player limit…", false);
+    try {
+      await request("/rest/v1/rpc/admin_set_player_limit", {
+        method: "POST",
+        body: JSON.stringify({ player_limit: limit })
+      });
+      currentPlayerLimit = limit;
+      playerLimitInput.value = limit === null ? "" : String(limit);
+      setMessage(limitMessage, limit === null
+        ? "Player limit removed. There is no limit."
+        : currentTeamsLocked
+          ? "Player limit set to " + limit + ". Existing team places remain locked."
+          : "Player limit set to " + limit + ". Attendance has been updated.", false);
+      limitWarningDialog.close();
+    } catch (error) {
+      setMessage(limitMessage, error.message || "Could not save the player limit.", true);
+    } finally {
+      savePlayerLimitButton.disabled = false;
+      confirmLimitButton.disabled = false;
+      pendingPlayerLimit = null;
+    }
+  }
+
+  async function saveTeamsLock(locked) {
+    saveTeamsLockButton.disabled = true;
+    setMessage(teamsLockMessage, "Saving team lock setting…", false);
+    try {
+      await request("/rest/v1/rpc/admin_set_teams_locked", {
+        method: "POST",
+        body: JSON.stringify({ lock_teams: locked })
+      });
+      currentTeamsLocked = locked;
+      teamsLockedInput.checked = locked;
+      setMessage(teamsLockMessage, locked
+        ? "Teams locked. Current places are fixed; new names waitlist when all places are full."
+        : "Teams unlocked. Attendance has been recalculated with ASMPT employee priority.", false);
+    } catch (error) {
+      teamsLockedInput.checked = currentTeamsLocked;
+      setMessage(teamsLockMessage, error.message || "Could not save the team lock setting.", true);
+    } finally {
+      saveTeamsLockButton.disabled = false;
+    }
+  }
+
   function renderEditForm(item, player) {
     item.replaceChildren();
     const form = document.createElement("form");
@@ -246,6 +320,7 @@
       session = result;
       sessionStorage.setItem(storageKey, JSON.stringify(session));
       await loadPlayers();
+      await loadPlayerLimit();
       showManager();
     } catch (error) {
       session = null;
@@ -283,7 +358,71 @@
     }
   });
 
+  playerLimitForm.addEventListener("submit", async function (event) {
+    event.preventDefault();
+    const value = playerLimitInput.value.trim();
+    const limit = value === "" ? null : Number(value);
+    if (limit !== null && (!Number.isSafeInteger(limit) || limit < 1 || limit > 2147483647)) {
+      playerLimitInput.focus();
+      setMessage(limitMessage, "Enter a whole-number limit from 1 to 2,147,483,647, or leave it blank for no limit.", true);
+      return;
+    }
+
+    if (limit !== null && (currentPlayerLimit === null || limit < currentPlayerLimit)) {
+      pendingPlayerLimit = limit;
+      limitWarningMessage.textContent = "Lowering the limit to " + limit +
+        " may move players who currently have a place to Unable to Attend / Waitlist. Places are recalculated first-come-first-served, with ASMPT employees prioritized over guests.";
+      limitWarningDialog.showModal();
+      return;
+    }
+
+    await savePlayerLimit(limit);
+  });
+
+  teamsLockForm.addEventListener("submit", function (event) {
+    event.preventDefault();
+    saveTeamsLock(teamsLockedInput.checked);
+  });
+
+  document.getElementById("cancel-limit-change").addEventListener("click", function () {
+    pendingPlayerLimit = null;
+    limitWarningDialog.close();
+  });
+  confirmLimitButton.addEventListener("click", function () {
+    if (pendingPlayerLimit !== null) {
+      savePlayerLimit(pendingPlayerLimit);
+    }
+  });
+
   document.getElementById("logout-button").addEventListener("click", showLogin);
+
+  document.getElementById("open-reset-dialog").addEventListener("click", function () {
+    resetDialog.showModal();
+  });
+  document.getElementById("cancel-reset-rsvps").addEventListener("click", function () {
+    resetDialog.close();
+  });
+  confirmResetButton.addEventListener("click", async function () {
+    confirmResetButton.disabled = true;
+    setMessage(managerMessage, "Clearing all RSVPs…", false);
+    try {
+      const deletedCount = await request("/rest/v1/rpc/admin_reset_rsvps", {
+        method: "POST",
+        body: "{}"
+      });
+      if (!Number.isInteger(deletedCount) || deletedCount < 0) {
+        throw new Error("Reset request completed but Supabase did not return the number of deleted RSVPs. Run the latest schema.sql, then try again.");
+      }
+      resetDialog.close();
+      setMessage(managerMessage, deletedCount === 0
+        ? "No RSVPs needed clearing. The player list is unchanged."
+        : deletedCount + " RSVP" + (deletedCount === 1 ? "" : "s") + " cleared. The player list is unchanged.", false);
+    } catch (error) {
+      setMessage(managerMessage, error.message || "Could not reset RSVPs.", true);
+    } finally {
+      confirmResetButton.disabled = false;
+    }
+  });
 
   if (isConfigured()) {
     try {
@@ -294,7 +433,7 @@
   }
 
   if (session && session.access_token) {
-    loadPlayers().then(showManager).catch(function (error) {
+    Promise.all([loadPlayers(), loadPlayerLimit()]).then(showManager).catch(function (error) {
       setMessage(loginMessage, error.message || "Admin access could not be verified. Please sign in again.", true);
       showLogin();
     });

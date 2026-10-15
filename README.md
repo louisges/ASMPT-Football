@@ -1,11 +1,11 @@
-# Football plans
+# ASMPT Football
 
-A public RSVP page for one upcoming football session, backed by Supabase. People choose a registered player from the roster or RSVP as a guest by typing a name. Each name has one answer; submitting again with the same name updates it (names are matched without regard to capitalization). Attendance and names are public.
+A public RSVP page for one upcoming football session, backed by Supabase. People choose a registered player from the roster or RSVP as a guest by typing a name. Each name has one place in the attendance list; submitting again with the same name updates that RSVP. Attendance and names are public.
 
 ## Set up Supabase
 
 1. Create a project at [Supabase](https://supabase.com/).
-2. In the Supabase SQL Editor, run the contents of [`schema.sql`](./schema.sql). This creates or upgrades the roster, RSVP storage, guest flags, and protected admin functions. Run it again after deploying these player-editing changes so Supabase adds the guest field and update function.
+2. In the Supabase SQL Editor, run the contents of [`schema.sql`](./schema.sql). This creates or upgrades the roster, RSVP storage, guest flags, attendance limit, team-lock setting, and database functions. Run it again after deploying app changes that introduce database functions or columns. Existing Maybe/Can't make it answers are migrated to the waitlist.
 3. In **Authentication → Users**, create an account for yourself with your email and a password. Do not add a public sign-up form to the site.
 4. In the SQL Editor, allowlist your account's email for roster administration. It must be the same email as `adminEmail` in `config.js` and the email on the Supabase account you use to sign in (the username `ASMPT` is only a sign-in label):
 
@@ -21,7 +21,6 @@ A public RSVP page for one upcoming football session, backed by Supabase. People
    window.FOOTBALL_CONFIG = {
      supabaseUrl: "https://your-project.supabase.co",
      supabaseAnonKey: "your-public-anon-key",
-     sessionName: "Football",
      sessionDate: "Saturday, 3:00 pm",
      adminUsername: "ASMPT",
      adminEmail: "your-admin@email.com"
@@ -32,7 +31,9 @@ A public RSVP page for one upcoming football session, backed by Supabase. People
 
 ## Admin page
 
-Open `admin.html` (or select **Admin** on the RSVP page), enter username `ASMPT`, and enter the password for the Supabase admin account. Add players, mark roster entries as guests, edit names or guest status, and remove players there. Renaming a player also updates their linked RSVP; a rename is rejected if the new name already has a different RSVP. Removing someone from the roster does not delete their existing RSVP. Roster entries marked as guests remain selectable and are labeled "Guest"; guests can also type a name using the separate guest RSVP option.
+Open `admin.html` (or select **Admin** on the RSVP page), enter username `ASMPT`, and enter the password for the Supabase admin account. Set a maximum player limit; leave it blank for no limit. When teams are unlocked, ASMPT employees have priority over guests; within each group, the earliest RSVP keeps its place. Use **Lock in the teams** to preserve current places; while locked, new RSVPs fill any open places and go to "Unable to Attend / Waitlist" when capacity is full, regardless of employee or guest status. Unlocking recalculates attendance with employee priority. Changing the limit automatically recalculates the list when unlocked and warns if lowering it may move players to the waitlist. While locked, a limit cannot be lowered below the number currently attending. Add players, mark roster entries as guests, edit names or guest status, remove players, or reset all RSVPs to start a fresh attendance list. Resetting permanently removes every answer but does not change the player roster or limit, requires confirmation, and reports how many RSVPs were deleted. Renaming a player also updates their linked RSVP; a rename is rejected if the new name already has a different RSVP. Removing someone from the roster does not delete their existing RSVP. Roster entries marked as guests remain selectable and are labeled "Guest"; guests can also type a name using the separate guest RSVP option.
+
+The public page has separate "Attending" and "Unable to Attend / Waitlist" sections. Each RSVP displays when the name was first added (in the visitor's local time). Every RSVP has a delete button; anyone with access to the page can delete an answer after confirming in the warning dialog. When teams are unlocked, removing an RSVP promotes the next eligible person according to the player-limit priority. When teams are locked, remaining places stay fixed and existing waitlisted names are not automatically promoted.
 
 ## Publish with GitHub Pages
 
