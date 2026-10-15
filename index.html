@@ -34,7 +34,7 @@
               </label>
               <label class="choice">
                 <input type="radio" name="name-type" value="guest">
-                <span>I'm a guest</span>
+                <span>Not on List</span>
               </label>
             </div>
           </fieldset>
@@ -46,9 +46,13 @@
             </select>
           </div>
           <div id="guest-name-field" class="name-field" hidden>
-            <label for="guest-name">Guest name</label>
+            <label for="guest-name">Your name</label>
             <input id="guest-name" name="guest-name" type="text" maxlength="60" autocomplete="name"
               placeholder="Enter your name" disabled>
+            <label class="checkbox-label" for="guest-is-employee">
+              <input id="guest-is-employee" name="is-employee" type="checkbox" disabled>
+              I am an ASMPT employee
+            </label>
           </div>
 
           <button id="submit-button" type="submit">Add my name</button>

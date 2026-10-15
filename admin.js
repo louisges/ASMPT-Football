@@ -26,6 +26,9 @@
   const copyAttendingButton = document.getElementById("copy-attending-list");
   const copyWaitlistButton = document.getElementById("copy-waitlist");
   const copyListMessage = document.getElementById("copy-list-message");
+  const unlistedRsvpsList = document.getElementById("unlisted-rsvps-list");
+  const unlistedRsvpsMessage = document.getElementById("unlisted-rsvps-message");
+  const refreshUnlistedRsvpsButton = document.getElementById("refresh-unlisted-rsvps");
   const limitWarningDialog = document.getElementById("limit-warning-dialog");
   const limitWarningMessage = document.getElementById("limit-warning-message");
   const confirmLimitButton = document.getElementById("confirm-limit-change");
@@ -41,6 +44,66 @@
       config.supabaseAnonKey &&
       !config.supabaseUrl.includes("YOUR-PROJECT") &&
       !config.supabaseAnonKey.includes("YOUR_SUPABASE");
+  }
+
+  async function loadUnlistedRsvps() {
+    refreshUnlistedRsvpsButton.disabled = true;
+    setMessage(unlistedRsvpsMessage, "Loading names not on the player list…", false);
+    unlistedRsvpsList.replaceChildren();
+    try {
+      const rsvps = await request(
+        "/rest/v1/rsvps?select=name,status,response_type,is_employee,player_id&player_id=is.null&order=created_at.asc,id.asc"
+      );
+      if (!Array.isArray(rsvps)) {
+        throw new Error("Supabase returned an invalid RSVP list.");
+      }
+      if (rsvps.length === 0) {
+        setMessage(unlistedRsvpsMessage, "There are no names to add right now.", false);
+        return;
+      }
+
+      rsvps.forEach(function (rsvp) {
+        const item = document.createElement("li");
+        item.className = "attendee";
+        const details = document.createElement("div");
+        details.className = "attendee-details";
+        const name = document.createElement("span");
+        name.className = "attendee-name";
+        name.textContent = rsvp.name + (rsvp.is_employee ? " (ASMPT Employee)" : " (Guest)");
+        const status = document.createElement("span");
+        status.className = "attendee-timestamp";
+        status.textContent = rsvp.status === "yes" ? "Attending" : "Unable to Attend / Waitlist";
+        details.append(name, status);
+
+        const addButton = document.createElement("button");
+        addButton.className = "edit-player-button";
+        addButton.type = "button";
+        addButton.textContent = "Add to Player List";
+        addButton.setAttribute("aria-label", "Add " + rsvp.name + " to the player list");
+        addButton.addEventListener("click", async function () {
+          addButton.disabled = true;
+          setMessage(unlistedRsvpsMessage, "Adding " + rsvp.name + " to the player list…", false);
+          try {
+            await request("/rest/v1/rpc/admin_add_rsvp_to_player_list", {
+              method: "POST",
+              body: JSON.stringify({ rsvp_name: rsvp.name })
+            });
+            await Promise.all([loadPlayers(), loadUnlistedRsvps()]);
+            setMessage(unlistedRsvpsMessage, rsvp.name + " added to the player list.", false);
+          } catch (error) {
+            addButton.disabled = false;
+            setMessage(unlistedRsvpsMessage, error.message || "Could not add the name to the player list.", true);
+          }
+        });
+        item.append(details, addButton);
+        unlistedRsvpsList.append(item);
+      });
+      setMessage(unlistedRsvpsMessage, "", false);
+    } catch (error) {
+      setMessage(unlistedRsvpsMessage, error.message || "Could not load names not on the player list.", true);
+    } finally {
+      refreshUnlistedRsvpsButton.disabled = false;
+    }
   }
 
   function setMessage(element, text, isError) {
@@ -187,7 +250,7 @@
     setMessage(copyListMessage, "Loading the latest " + label + "…", false);
     try {
       const rsvps = await request(
-        "/rest/v1/rsvps?select=name,response_type&status=eq." + status + "&order=created_at.asc,id.asc"
+        "/rest/v1/rsvps?select=name,response_type,is_employee&status=eq." + status + "&order=created_at.asc,id.asc"
       );
       if (!Array.isArray(rsvps)) {
         throw new Error("Supabase returned an invalid attendance list.");
@@ -198,7 +261,9 @@
       }
 
       const names = rsvps.map(function (rsvp) {
-        return rsvp.name + (rsvp.response_type === "guest" ? " (Guest)" : "");
+        return rsvp.name + (rsvp.response_type === "guest"
+          ? (rsvp.is_employee ? " (ASMPT Employee)" : " (Guest)")
+          : "");
       }).join("\n");
       try {
         await navigator.clipboard.writeText(names);
@@ -382,6 +447,7 @@
       sessionStorage.setItem(storageKey, JSON.stringify(session));
       await loadPlayers();
       await loadPlayerLimit();
+      await loadUnlistedRsvps();
       showManager();
     } catch (error) {
       session = null;
@@ -451,6 +517,7 @@
   copyWaitlistButton.addEventListener("click", function () {
     copyAttendanceList("unable", copyWaitlistButton, "unable to attend list");
   });
+  refreshUnlistedRsvpsButton.addEventListener("click", loadUnlistedRsvps);
 
   document.getElementById("cancel-limit-change").addEventListener("click", function () {
     pendingPlayerLimit = null;
@@ -501,7 +568,7 @@
   }
 
   if (session && session.access_token) {
-    Promise.all([loadPlayers(), loadPlayerLimit()]).then(showManager).catch(function (error) {
+    Promise.all([loadPlayers(), loadPlayerLimit(), loadUnlistedRsvps()]).then(showManager).catch(function (error) {
       setMessage(loginMessage, error.message || "Admin access could not be verified. Please sign in again.", true);
       showLogin();
     });

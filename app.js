@@ -5,6 +5,7 @@
   const form = document.getElementById("rsvp-form");
   const playerName = document.getElementById("player-name");
   const guestName = document.getElementById("guest-name");
+  const guestIsEmployee = document.getElementById("guest-is-employee");
   const playerNameField = document.getElementById("player-name-field");
   const guestNameField = document.getElementById("guest-name-field");
   const submitButton = document.getElementById("submit-button");
@@ -64,6 +65,10 @@
     playerName.required = !isGuest;
     guestName.disabled = !isGuest;
     guestName.required = isGuest;
+    guestIsEmployee.disabled = !isGuest;
+    if (!isGuest) {
+      guestIsEmployee.checked = false;
+    }
   }
 
   async function loadPlayers() {
@@ -82,6 +87,10 @@
         throw new Error("Could not load the player list (HTTP " + response.status + ").");
       }
       const players = await response.json();
+      const playerCollator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
+      players.sort(function (left, right) {
+        return playerCollator.compare(left.name, right.name);
+      });
       playerName.replaceChildren(new Option("Select your name", ""));
       players.forEach(function (player) {
         playerName.add(new Option(player.name + (player.is_guest ? " (Guest)" : ""), player.name));
@@ -113,7 +122,7 @@
     try {
       const baseUrl = config.supabaseUrl.replace(/\/+$/, "");
       const responses = await Promise.all([
-        fetch(baseUrl + "/rest/v1/rsvps?select=name,status,response_type,created_at,id&order=created_at.asc,id.asc", {
+        fetch(baseUrl + "/rest/v1/rsvps?select=name,status,response_type,is_employee,created_at,id&order=created_at.asc,id.asc", {
           headers: headers()
         }),
         fetch(baseUrl + "/rest/v1/attendance_settings?select=max_players,attendance_status&id=eq.true", {
@@ -160,7 +169,9 @@
         details.className = "attendee-details";
         const name = document.createElement("span");
         name.className = "attendee-name";
-        name.textContent = rsvp.name + (rsvp.response_type === "guest" ? " (Guest)" : "");
+        name.textContent = rsvp.name + (rsvp.response_type === "guest"
+          ? (rsvp.is_employee ? " (ASMPT Employee)" : " (Guest)")
+          : "");
 
         const submittedAt = new Date(rsvp.created_at);
         const timestamp = document.createElement("time");
@@ -227,7 +238,11 @@
         {
           method: "POST",
           headers: headers(),
-          body: JSON.stringify({ rsvp_name: name, rsvp_type: nameType })
+          body: JSON.stringify({
+            rsvp_name: name,
+            rsvp_type: nameType,
+            rsvp_is_employee: nameType === "guest" && guestIsEmployee.checked
+          })
         }
       );
       if (!response.ok) {
