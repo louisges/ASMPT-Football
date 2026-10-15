@@ -250,6 +250,7 @@ fieldset {
 
 #submit-button {
   width: 100%;
+  margin-top: 14px;
   min-height: 49px;
   border: 0;
   border-radius: 10px;

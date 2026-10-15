@@ -69,7 +69,7 @@
         details.className = "attendee-details";
         const name = document.createElement("span");
         name.className = "attendee-name";
-        name.textContent = rsvp.name + (rsvp.is_employee ? " (ASMPT Employee)" : " (Guest)");
+        name.textContent = rsvp.name + (rsvp.is_employee ? "" : " (Guest)");
         const status = document.createElement("span");
         status.className = "attendee-timestamp";
         status.textContent = rsvp.status === "yes" ? "Attending" : "Unable to Attend / Waitlist";
@@ -261,8 +261,8 @@
       }
 
       const names = rsvps.map(function (rsvp) {
-        return rsvp.name + (rsvp.response_type === "guest"
-          ? (rsvp.is_employee ? " (ASMPT Employee)" : " (Guest)")
+        return rsvp.name + (rsvp.response_type === "guest" && !rsvp.is_employee
+          ? " (Guest)"
           : "");
       }).join("\n");
       try {
