@@ -18,10 +18,14 @@
   const playerLimitInput = document.getElementById("player-limit");
   const savePlayerLimitButton = document.getElementById("save-player-limit");
   const limitMessage = document.getElementById("limit-message");
-  const teamsLockForm = document.getElementById("teams-lock-form");
-  const teamsLockedInput = document.getElementById("teams-locked");
-  const saveTeamsLockButton = document.getElementById("save-teams-lock");
-  const teamsLockMessage = document.getElementById("teams-lock-message");
+  const attendanceStatusForm = document.getElementById("attendance-status-form");
+  const attendanceStatusInput = document.getElementById("attendance-status");
+  const saveAttendanceStatusButton = document.getElementById("save-attendance-status");
+  const attendanceStatusMessage = document.getElementById("attendance-status-message");
+  const attendanceStatusIndicator = document.getElementById("attendance-status-indicator");
+  const copyAttendingButton = document.getElementById("copy-attending-list");
+  const copyWaitlistButton = document.getElementById("copy-waitlist");
+  const copyListMessage = document.getElementById("copy-list-message");
   const limitWarningDialog = document.getElementById("limit-warning-dialog");
   const limitWarningMessage = document.getElementById("limit-warning-message");
   const confirmLimitButton = document.getElementById("confirm-limit-change");
@@ -29,7 +33,7 @@
   const confirmResetButton = document.getElementById("confirm-reset-rsvps");
   let session = null;
   let currentPlayerLimit = null;
-  let currentTeamsLocked = false;
+  let currentAttendanceStatus = "open";
   let pendingPlayerLimit = null;
 
   function isConfigured() {
@@ -157,14 +161,67 @@
   }
 
   async function loadPlayerLimit() {
-    const settings = await request("/rest/v1/attendance_settings?select=max_players,teams_locked&id=eq.true");
+    const settings = await request("/rest/v1/attendance_settings?select=max_players,attendance_status&id=eq.true");
     if (!settings.length) {
       throw new Error("Attendance settings are missing. Run the latest schema.sql in Supabase.");
     }
     currentPlayerLimit = settings[0].max_players;
-    currentTeamsLocked = settings[0].teams_locked;
+    currentAttendanceStatus = settings[0].attendance_status;
     playerLimitInput.value = currentPlayerLimit === null ? "" : String(currentPlayerLimit);
-    teamsLockedInput.checked = currentTeamsLocked;
+    attendanceStatusInput.value = currentAttendanceStatus;
+    updateAttendanceStatusIndicator();
+  }
+
+  function updateAttendanceStatusIndicator() {
+    const details = {
+      open: ["OPEN — RSVPs are being accepted", "open"],
+      closed: ["CLOSED — no new RSVPs are being accepted", "closed"],
+      locked: ["LOCKED — team places are fixed", "locked"]
+    };
+    attendanceStatusIndicator.textContent = details[currentAttendanceStatus][0];
+    attendanceStatusIndicator.className = "attendance-status-indicator " + details[currentAttendanceStatus][1];
+  }
+
+  async function copyAttendanceList(status, button, label) {
+    button.disabled = true;
+    setMessage(copyListMessage, "Loading the latest " + label + "…", false);
+    try {
+      const rsvps = await request(
+        "/rest/v1/rsvps?select=name,response_type&status=eq." + status + "&order=created_at.asc,id.asc"
+      );
+      if (!Array.isArray(rsvps)) {
+        throw new Error("Supabase returned an invalid attendance list.");
+      }
+      if (rsvps.length === 0) {
+        setMessage(copyListMessage, "There are no names in the " + label + " to copy.", false);
+        return;
+      }
+
+      const names = rsvps.map(function (rsvp) {
+        return rsvp.name + (rsvp.response_type === "guest" ? " (Guest)" : "");
+      }).join("\n");
+      try {
+        await navigator.clipboard.writeText(names);
+      } catch (clipboardError) {
+        const temporaryInput = document.createElement("textarea");
+        temporaryInput.value = names;
+        temporaryInput.setAttribute("readonly", "");
+        temporaryInput.style.position = "fixed";
+        temporaryInput.style.opacity = "0";
+        document.body.append(temporaryInput);
+        temporaryInput.select();
+        const copied = document.execCommand("copy");
+        temporaryInput.remove();
+        if (!copied) {
+          throw new Error("Clipboard access was denied.");
+        }
+      }
+      setMessage(copyListMessage, "Copied " + rsvps.length + " name" + (rsvps.length === 1 ? "" : "s") + " from the " + label + ".", false);
+    } catch (error) {
+      setMessage(copyListMessage, error.message || "Could not copy the " + label + ".", true);
+    } finally {
+      button.disabled = false;
+    }
   }
 
   async function savePlayerLimit(limit) {
@@ -180,7 +237,7 @@
       playerLimitInput.value = limit === null ? "" : String(limit);
       setMessage(limitMessage, limit === null
         ? "Player limit removed. There is no limit."
-        : currentTeamsLocked
+        : currentAttendanceStatus === "locked"
           ? "Player limit set to " + limit + ". Existing team places remain locked."
           : "Player limit set to " + limit + ". Attendance has been updated.", false);
       limitWarningDialog.close();
@@ -193,24 +250,28 @@
     }
   }
 
-  async function saveTeamsLock(locked) {
-    saveTeamsLockButton.disabled = true;
-    setMessage(teamsLockMessage, "Saving team lock setting…", false);
+  async function saveAttendanceStatus(status) {
+    saveAttendanceStatusButton.disabled = true;
+    setMessage(attendanceStatusMessage, "Saving attendance status…", false);
     try {
-      await request("/rest/v1/rpc/admin_set_teams_locked", {
+      await request("/rest/v1/rpc/admin_set_attendance_status", {
         method: "POST",
-        body: JSON.stringify({ lock_teams: locked })
+        body: JSON.stringify({ new_status: status })
       });
-      currentTeamsLocked = locked;
-      teamsLockedInput.checked = locked;
-      setMessage(teamsLockMessage, locked
-        ? "Teams locked. Current places are fixed; new names waitlist when all places are full."
-        : "Teams unlocked. Attendance has been recalculated with ASMPT employee priority.", false);
+      currentAttendanceStatus = status;
+      attendanceStatusInput.value = status;
+      updateAttendanceStatusIndicator();
+      const messages = {
+        open: "Status set to Open. RSVPs are accepted with ASMPT employee priority.",
+        closed: "Status set to Closed. No one can add an RSVP.",
+        locked: "Status set to Locked. Current places are fixed."
+      };
+      setMessage(attendanceStatusMessage, messages[status], false);
     } catch (error) {
-      teamsLockedInput.checked = currentTeamsLocked;
-      setMessage(teamsLockMessage, error.message || "Could not save the team lock setting.", true);
+      attendanceStatusInput.value = currentAttendanceStatus;
+      setMessage(attendanceStatusMessage, error.message || "Could not save the attendance status.", true);
     } finally {
-      saveTeamsLockButton.disabled = false;
+      saveAttendanceStatusButton.disabled = false;
     }
   }
 
@@ -379,9 +440,16 @@
     await savePlayerLimit(limit);
   });
 
-  teamsLockForm.addEventListener("submit", function (event) {
+  attendanceStatusForm.addEventListener("submit", function (event) {
     event.preventDefault();
-    saveTeamsLock(teamsLockedInput.checked);
+    saveAttendanceStatus(attendanceStatusInput.value);
+  });
+
+  copyAttendingButton.addEventListener("click", function () {
+    copyAttendanceList("yes", copyAttendingButton, "attending list");
+  });
+  copyWaitlistButton.addEventListener("click", function () {
+    copyAttendanceList("unable", copyWaitlistButton, "unable to attend list");
   });
 
   document.getElementById("cancel-limit-change").addEventListener("click", function () {

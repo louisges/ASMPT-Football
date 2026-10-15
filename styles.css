@@ -169,7 +169,8 @@ legend {
 
 .name-field select,
 .name-field input,
-.admin-page form input {
+.admin-page form input,
+.admin-page form select {
   width: 100%;
   height: 48px;
   padding: 0 14px;
@@ -182,7 +183,8 @@ legend {
 
 .name-field select:focus,
 .name-field input:focus,
-.admin-page form input:focus {
+.admin-page form input:focus,
+.admin-page form select:focus {
   border-color: #84a581;
   box-shadow: 0 0 0 3px rgba(132, 165, 129, 0.17);
 }
@@ -403,6 +405,42 @@ fieldset {
   margin-bottom: 0;
 }
 
+.copy-lists-panel {
+  margin-bottom: 23px;
+  padding: 15px;
+  border: 1px solid #e1e9dc;
+  border-radius: 11px;
+  background: #f7faf5;
+}
+
+.copy-lists-panel h3 {
+  margin: 0 0 5px;
+  color: #334c40;
+  font-size: 0.86rem;
+}
+
+.copy-lists-panel > div:first-child p {
+  margin: 0 0 12px;
+  color: #738078;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.copy-list-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.copy-list-actions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.copy-lists-panel .message {
+  margin-bottom: 0;
+}
+
 .reset-rsvps-panel {
   display: flex;
   align-items: center;
@@ -614,6 +652,36 @@ fieldset {
   font-size: 0.83rem;
   font-weight: 700;
   text-align: center;
+}
+
+.attendance-status-indicator {
+  display: block;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #74a77d;
+  border-radius: 8px;
+  background: #e9f5e9;
+  color: #245531;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+}
+
+.attendance-status-indicator.closed,
+.attendance-status-indicator.locked {
+  border-color: #bd744e;
+  background: #fff0e8;
+  color: #783c21;
+}
+
+.attendance-status-indicator.locked {
+  border-color: #7771b2;
+  background: #eeedfa;
+  color: #403b7a;
+}
+
+#attendance-status-indicator + .player-limit-controls {
+  margin-top: 12px;
 }
 
 .attendance-group {

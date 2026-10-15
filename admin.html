@@ -58,20 +58,33 @@
           </div>
           <p id="limit-message" class="message" role="status" aria-live="polite"></p>
         </form>
-        <form id="teams-lock-form" class="player-limit-panel">
+        <form id="attendance-status-form" class="player-limit-panel">
           <div>
-            <label for="teams-locked">Lock in the teams</label>
-            <p>When locked, current places stay fixed. New names join the waitlist when all places are full, regardless of whether they are ASMPT employees or guests. If an attending player is removed, the earliest waitlisted name takes the open place. Unlocking restores employee priority.</p>
+            <label for="attendance-status">Attendance status</label>
+            <p><strong>Open:</strong> normal RSVPs with ASMPT employee priority. <strong>Closed:</strong> no one can add a name. <strong>Locked:</strong> current places stay fixed; new names use any available places and then join the waitlist, regardless of employee or guest status. If an attending player is removed, the earliest waitlisted name takes the open place.</p>
           </div>
+          <p id="attendance-status-indicator" class="attendance-status-indicator" role="status" aria-live="polite"></p>
           <div class="player-limit-controls">
-            <label class="checkbox-label" for="teams-locked">
-              <input id="teams-locked" name="teams-locked" type="checkbox">
-              Teams are locked
-            </label>
-            <button id="save-teams-lock" type="submit">Save lock setting</button>
+            <select id="attendance-status" name="attendance-status">
+              <option value="open">Open</option>
+              <option value="closed">Closed</option>
+              <option value="locked">Locked</option>
+            </select>
+            <button id="save-attendance-status" type="submit">Save status</button>
           </div>
-          <p id="teams-lock-message" class="message" role="status" aria-live="polite"></p>
+          <p id="attendance-status-message" class="message" role="status" aria-live="polite"></p>
         </form>
+        <section class="copy-lists-panel" aria-labelledby="copy-lists-heading">
+          <div>
+            <h3 id="copy-lists-heading">Copy attendance lists</h3>
+            <p>Copy the latest names to your clipboard. Guest names are marked.</p>
+          </div>
+          <div class="copy-list-actions">
+            <button id="copy-attending-list" class="refresh-button" type="button">Copy attending list</button>
+            <button id="copy-waitlist" class="refresh-button" type="button">Copy unable to attend list</button>
+          </div>
+          <p id="copy-list-message" class="message" role="status" aria-live="polite"></p>
+        </section>
         <form id="add-player-form">
           <label for="new-player">Add a player</label>
           <div class="add-player-row">

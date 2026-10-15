@@ -30,7 +30,7 @@
             <div class="choices name-type-choices">
               <label class="choice">
                 <input type="radio" name="name-type" value="player" checked>
-                <span>Choose a player</span>
+                <span>Player List</span>
               </label>
               <label class="choice">
                 <input type="radio" name="name-type" value="guest">
@@ -69,6 +69,7 @@
 
         <div class="capacity-summary" aria-live="polite">
           <span id="capacity-count">Loading places…</span>
+          <strong id="attendance-status-indicator" class="attendance-status-indicator"></strong>
         </div>
 
         <p id="list-message" class="list-message" role="status" aria-live="polite">Loading attendance…</p>
@@ -113,6 +114,17 @@
         <p id="waitlist-notice-message" class="intro"></p>
         <div class="confirm-actions">
           <button id="close-waitlist-notice" class="refresh-button" type="button">OK</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="closed-notice-dialog" class="confirm-dialog" aria-labelledby="closed-notice-title">
+      <div class="confirm-dialog-content">
+        <p class="eyebrow">RSVPs CLOSED</p>
+        <h2 id="closed-notice-title">Attendance is closed</h2>
+        <p class="intro">No new names can be added at this time. Please check back later.</p>
+        <div class="confirm-actions">
+          <button id="close-closed-notice" class="refresh-button" type="button">OK</button>
         </div>
       </div>
     </dialog>

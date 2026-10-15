@@ -62,11 +62,21 @@ create table if not exists public.admin_users (
 create table if not exists public.attendance_settings (
   id boolean primary key default true check (id),
   max_players integer check (max_players is null or max_players >= 1),
-  teams_locked boolean not null default false
+  teams_locked boolean not null default false,
+  attendance_status text not null default 'open'
+    check (attendance_status in ('open', 'closed', 'locked'))
 );
 
 alter table public.attendance_settings
   add column if not exists teams_locked boolean not null default false;
+
+alter table public.attendance_settings
+  add column if not exists attendance_status text not null default 'open'
+  check (attendance_status in ('open', 'closed', 'locked'));
+
+update public.attendance_settings
+set attendance_status = 'locked'
+where teams_locked and attendance_status = 'open';
 
 insert into public.attendance_settings (id, max_players)
 values (true, null)
@@ -118,9 +128,9 @@ security definer
 set search_path = pg_catalog, public
 as $$
 declare
-  current_teams_locked boolean;
+  current_attendance_status text;
 begin
-  select teams_locked into current_teams_locked
+  select attendance_status into current_attendance_status
   from public.attendance_settings
   where id = true;
 
@@ -128,7 +138,7 @@ begin
     raise exception 'Attendance settings are missing. Run schema.sql in Supabase.';
   end if;
 
-  if current_teams_locked then
+  if current_attendance_status = 'locked' then
     with attending_count as (
       select count(*) as total from public.rsvps where status = 'yes'
     ),
@@ -184,7 +194,7 @@ declare
   selected_player_id bigint;
   selected_player_is_guest boolean;
   current_limit integer;
-  current_teams_locked boolean;
+  current_attendance_status text;
   existing_status text;
   initial_status text;
   current_attending_count integer;
@@ -198,13 +208,17 @@ begin
     raise exception 'Name type must be player or guest.';
   end if;
 
-  select max_players, teams_locked into current_limit, current_teams_locked
+  select max_players, attendance_status into current_limit, current_attendance_status
   from public.attendance_settings
   where id = true
   for update;
 
   if not found then
     raise exception 'Attendance settings are missing. Run schema.sql in Supabase.';
+  end if;
+
+  if current_attendance_status = 'closed' then
+    raise exception 'Attendance is closed. No new RSVPs can be added.';
   end if;
 
   selected_player_id := null;
@@ -223,7 +237,7 @@ begin
   from public.rsvps
   where lower(name) = lower(btrim(rsvp_name));
 
-  if current_teams_locked then
+  if current_attendance_status = 'locked' then
     if existing_status is not null then
       initial_status := existing_status;
     else
@@ -252,14 +266,14 @@ begin
   on conflict (lower(name)) do update
     set name = excluded.name,
         status = case
-          when current_teams_locked and existing_status is not null then existing_status
+          when current_attendance_status = 'locked' and existing_status is not null then existing_status
           else excluded.status
         end,
         response_type = excluded.response_type,
         player_id = excluded.player_id,
         updated_at = excluded.updated_at;
 
-  if not current_teams_locked then
+  if current_attendance_status <> 'locked' then
     perform public.recalculate_rsvp_statuses(current_limit);
   end if;
   select status into submitted_status
@@ -473,7 +487,8 @@ begin
     raise exception 'Attendance settings are missing. Run schema.sql in Supabase.';
   end if;
 
-  delete from public.rsvps;
+  delete from public.rsvps
+  where created_at is not null;
   get diagnostics deleted_count = row_count;
   return deleted_count;
 end;
@@ -486,7 +501,7 @@ security definer
 set search_path = pg_catalog, public
 as $$
 declare
-  current_teams_locked boolean;
+  current_attendance_status text;
   current_attending_count integer;
 begin
   if not exists (
@@ -500,7 +515,7 @@ begin
     raise exception 'Player limit must be at least 1, or blank for no limit.';
   end if;
 
-  select teams_locked into current_teams_locked
+  select attendance_status into current_attendance_status
   from public.attendance_settings
   where id = true
   for update;
@@ -508,7 +523,7 @@ begin
     raise exception 'Attendance settings are missing. Run schema.sql in Supabase.';
   end if;
 
-  if current_teams_locked and player_limit is not null then
+  if current_attendance_status = 'locked' and player_limit is not null then
     select count(*) into current_attending_count
     from public.rsvps
     where status = 'yes';
@@ -555,10 +570,51 @@ begin
   end if;
 
   update public.attendance_settings
-  set teams_locked = lock_teams
+  set teams_locked = lock_teams,
+      attendance_status = case when lock_teams then 'locked' else 'open' end
   where id = true;
 
   if not lock_teams then
+    perform public.recalculate_rsvp_statuses(current_limit);
+  end if;
+end;
+$$;
+
+create or replace function public.admin_set_attendance_status(new_status text)
+returns void
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  current_limit integer;
+begin
+  if not exists (
+    select 1 from public.admin_users
+    where email = lower(btrim(coalesce(auth.jwt() ->> 'email', '')))
+  ) then
+    raise exception 'Admin access required.';
+  end if;
+
+  if new_status is null or new_status not in ('open', 'closed', 'locked') then
+    raise exception 'Attendance status must be open, closed, or locked.';
+  end if;
+
+  select max_players into current_limit
+  from public.attendance_settings
+  where id = true
+  for update;
+
+  if not found then
+    raise exception 'Attendance settings are missing. Run schema.sql in Supabase.';
+  end if;
+
+  update public.attendance_settings
+  set attendance_status = new_status,
+      teams_locked = (new_status = 'locked')
+  where id = true;
+
+  if new_status <> 'locked' then
     perform public.recalculate_rsvp_statuses(current_limit);
   end if;
 end;
@@ -568,9 +624,11 @@ revoke all on function public.delete_rsvp(text) from public;
 revoke all on function public.admin_reset_rsvps() from public;
 revoke all on function public.admin_set_player_limit(integer) from public;
 revoke all on function public.admin_set_teams_locked(boolean) from public;
+revoke all on function public.admin_set_attendance_status(text) from public;
 grant execute on function public.delete_rsvp(text) to anon, authenticated;
 grant execute on function public.admin_reset_rsvps() to authenticated;
 grant execute on function public.admin_set_player_limit(integer) to authenticated;
 grant execute on function public.admin_set_teams_locked(boolean) to authenticated;
+grant execute on function public.admin_set_attendance_status(text) to authenticated;
 
 notify pgrst, 'reload schema';

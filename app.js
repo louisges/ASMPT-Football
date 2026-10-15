@@ -15,14 +15,17 @@
   const attendingEmpty = document.getElementById("attending-empty");
   const unableEmpty = document.getElementById("unable-empty");
   const capacityCount = document.getElementById("capacity-count");
+  const attendanceStatusIndicator = document.getElementById("attendance-status-indicator");
   const refreshButton = document.getElementById("refresh-button");
   const deleteDialog = document.getElementById("delete-rsvp-dialog");
   const deleteWarning = document.getElementById("delete-rsvp-warning");
   const confirmDeleteButton = document.getElementById("confirm-delete-rsvp");
   const waitlistNoticeDialog = document.getElementById("waitlist-notice-dialog");
   const waitlistNoticeMessage = document.getElementById("waitlist-notice-message");
+  const closedNoticeDialog = document.getElementById("closed-notice-dialog");
   let pendingDeleteName = null;
   let playersAvailable = false;
+  let attendanceStatus = null;
 
   const sessionDate = document.getElementById("session-date");
   if (config.sessionDate) {
@@ -113,7 +116,7 @@
         fetch(baseUrl + "/rest/v1/rsvps?select=name,status,response_type,created_at,id&order=created_at.asc,id.asc", {
           headers: headers()
         }),
-        fetch(baseUrl + "/rest/v1/attendance_settings?select=max_players,teams_locked&id=eq.true", {
+        fetch(baseUrl + "/rest/v1/attendance_settings?select=max_players,attendance_status&id=eq.true", {
           headers: headers()
         })
       ]);
@@ -129,7 +132,7 @@
         throw new Error("Player limit settings are missing. Run the latest schema.sql in Supabase.");
       }
       const maxPlayers = settings[0].max_players;
-      const teamsLocked = settings[0].teams_locked;
+      attendanceStatus = settings[0].attendance_status;
       const attending = rsvps.filter(function (rsvp) { return rsvp.status === "yes"; });
       const unable = rsvps.filter(function (rsvp) { return rsvp.status === "unable"; });
       document.getElementById("yes-count").textContent = String(attending.length);
@@ -137,9 +140,17 @@
       capacityCount.textContent = maxPlayers === null
         ? attending.length + " players coming · no player limit"
         : attending.length + " of " + maxPlayers + " places filled";
-      if (teamsLocked) {
-        capacityCount.textContent += " · teams locked";
+      const statusDetails = {
+        open: ["OPEN — RSVPs are being accepted", "open"],
+        closed: ["CLOSED — no new RSVPs are being accepted", "closed"],
+        locked: ["LOCKED — team places are fixed", "locked"]
+      };
+      const statusDetail = statusDetails[attendanceStatus];
+      if (!statusDetail) {
+        throw new Error("Attendance status is invalid. Run the latest schema.sql in Supabase.");
       }
+      attendanceStatusIndicator.textContent = statusDetail[0];
+      attendanceStatusIndicator.className = "attendance-status-indicator " + statusDetail[1];
 
       rsvps.forEach(function (rsvp) {
         const item = document.createElement("li");
@@ -194,6 +205,11 @@
       return;
     }
 
+    if (attendanceStatus === "closed") {
+      closedNoticeDialog.showModal();
+      return;
+    }
+
     const nameType = selectedNameType();
     const name = nameType === "guest" ? guestName.value.trim() : playerName.value;
     if (!name) {
@@ -230,7 +246,11 @@
         waitlistNoticeDialog.showModal();
       }
     } catch (error) {
-      setMessage(formMessage, error.message || "Could not save your answer. Please try again.", true);
+      if (error.message && error.message.includes("Attendance is closed.")) {
+        closedNoticeDialog.showModal();
+      } else {
+        setMessage(formMessage, error.message || "Could not save your answer. Please try again.", true);
+      }
     } finally {
       submitButton.disabled = false;
     }
@@ -276,6 +296,10 @@
 
   document.getElementById("close-waitlist-notice").addEventListener("click", function () {
     waitlistNoticeDialog.close();
+  });
+
+  document.getElementById("close-closed-notice").addEventListener("click", function () {
+    closedNoticeDialog.close();
   });
 
   form.querySelectorAll('input[name="name-type"]').forEach(function (input) {
